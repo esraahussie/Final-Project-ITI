@@ -1,0 +1,120 @@
+﻿@{
+    ViewData["Title"] = "Payment Test";
+}
+
+<header>
+    <div class="nav-left">
+        <h1>Uber</h1>
+    </div>
+</header>
+
+<div class="page-container">
+    <h1>Payment Test Page</h1>
+
+    <p>Card Payment</p>
+
+    <form asp-action="Checkout" method="post" class="payment-form">
+        <label>Amount to Checkout ($): </label>
+        <input type="number" name="amount" step="0.01" value="50.00" required />
+        <button type="submit" class="btn btn-primary">Start Checkout</button>
+    </form>
+
+    <hr />
+
+</div>
+
+<style>
+    header {
+        background: #000;
+        color: #fff;
+        padding: 20px 50px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .nav-left {
+        display: flex;
+        align-items: center;
+        gap: 30px;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #fff;
+        color: #333;
+        margin: 0;
+        padding: 0;
+    }
+
+    .page-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 20px;
+    }
+
+    h1 {
+        color: #0d6efd;
+        margin-bottom: 15px;
+        text-align: center;
+    }
+
+    p {
+        font-size: 16px;
+        margin-bottom: 25px;
+        text-align: center;
+        max-width: 600px;
+    }
+
+    .payment-form {
+        background-color: #fff;
+        padding: 40px 30px;
+        border-radius: 15px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        max-width: 450px;
+        width: 100%;
+        text-align: center;
+        margin-bottom: 50px;
+    }
+
+        .payment-form label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .payment-form input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+
+        .payment-form button {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: none;
+            background-color: #0d6efd;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+            .payment-form button:hover {
+                background-color: #0b5ed7;
+            }
+
+    hr {
+        margin: 40px 0;
+        border: 0;
+        border-top: 1px solid #ccc;
+        width: 80%;
+    }
+
+</style>

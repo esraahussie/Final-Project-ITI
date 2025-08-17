@@ -1,0 +1,134 @@
+﻿@model string 
+
+<h2>Waiting for a driver...</h2>
+<p>Ride ID: @Model</p>
+<div id="status">Looking for drivers...</div>
+<div id="connectionStatus" style="margin-top: 20px; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">
+    <strong>Connection Status:</strong> <span id="statusText">Connecting...</span>
+</div>
+
+<!-- Use CDN for SignalR client library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+<script>
+    let connection = null;
+    let isConnected = false;
+
+    // Initialize SignalR connection
+    async function initializeConnection() {
+        try {
+            // Create connection to RideHub
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl("/rideHub", { 
+                    skipNegotiation: true,
+                    transport: signalR.HttpTransportType.WebSockets
+                })
+                .withAutomaticReconnect()
+        .build();
+
+            // Set up event listeners AFTER connection is created
+            setupEventListeners();
+
+            // Connection event handlers
+            connection.onreconnecting(() => {
+                updateStatus("Reconnecting...", "orange");
+            });
+
+            connection.onreconnected(() => {
+                updateStatus("Connected", "green");
+                isConnected = true;
+            });
+
+            connection.onclose(() => {
+                updateStatus("Disconnected", "red");
+                isConnected = false;
+            });
+
+            // Start connection
+            await connection.start();
+            
+            updateStatus("Connected", "green");
+            isConnected = true;
+
+            // Join the ride group when page loads
+            await connection.invoke("JoinRideGroup", "ride-@Model");
+
+        } catch (err) {
+            console.error("SignalR Connection Error:", err);
+            updateStatus("Connection Failed: " + err.message, "red");
+            
+            // Show error in status div as well
+            document.getElementById("status").innerHTML = `
+                <div style="color: red; padding: 20px; text-align: center;">
+                    <h3>⚠️ Connection Error</h3>
+                    <p>Failed to connect to real-time updates: ${err.message}</p>
+                    <button onclick="location.reload()" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        🔄 Retry Connection
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    // Set up event listeners after connection is created
+    function setupEventListeners() {
+        if (!connection) {
+            return;
+        }
+
+        // Listen for ride accepted event
+        connection.on("RideAccepted", function (rideId) {
+            if (rideId == @Model) {
+                document.getElementById("status").innerHTML = `
+                    <div style="color: green; padding: 20px; text-align: center;">
+                        <h3>🚗 Driver accepted your request!</h3>
+                        <p>Your driver is on the way!</p>
+                        <p>Redirecting to ride details in 3 seconds...</p>
+                    </div>
+                `;
+                
+                // Redirect to ride details page after a short delay
+                setTimeout(() => {
+                    window.location.href = `/Ride/RideDetails/${rideId}`;
+                }, 3000);
+            }
+        });
+
+        // Listen for ride rejected event
+        connection.on("RideRejected", function (rideId) {
+            if (rideId == @Model) {
+                document.getElementById("status").innerHTML = `
+                    <div style="color: orange; padding: 20px; text-align: center;">
+                        <h3>⚠️ Driver rejected your request</h3>
+                        <p>Looking for another driver...</p>
+                    </div>
+                `;
+            }
+        });
+
+        // Listen for test messages
+        connection.on("TestMessage", function (message) {
+            document.getElementById("status").innerHTML = `
+                <div style="color: blue; padding: 20px; text-align: center;">
+                    <h3>🧪 Test Message Received</h3>
+                    <p>${message}</p>
+                    <p>SignalR is working correctly!</p>
+                </div>
+            `;
+        });
+    }
+
+    function updateStatus(message, color) {
+        const statusText = document.getElementById("statusText");
+        statusText.textContent = message;
+        statusText.style.color = color;
+    }
+
+    // Initialize connection when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+
+        initializeConnection();
+	});
+
+</script>
+
+

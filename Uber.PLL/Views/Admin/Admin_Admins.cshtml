@@ -1,0 +1,175 @@
+﻿@model IEnumerable<Uber.BLL.ModelVM.Admin.EditAdmin>
+
+@{
+    ViewData["Title"] = "Admins";
+}
+
+<style>
+    header {
+        background: #000;
+        color: #fff;
+        padding: 20px 50px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .nav-left {
+        display: flex;
+        align-items: center;
+        gap: 30px;
+    }
+
+        .nav-left h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .nav-left a {
+            color: #fff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+    .page-title {
+        text-align: center;
+        font-size: 32px;
+        font-weight: bold;
+        color: #000;
+        margin: 40px 0 20px 0;
+    }
+
+    table {
+        width: 90%;
+        margin: auto;
+        border-collapse: collapse;
+        font-family: Arial, sans-serif;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    th, td {
+        padding: 12px 15px;
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    th {
+        background-color: #000;
+        color: white;
+    }
+
+    tr:nth-child(even) {
+        background-color: #f8f8f8;
+    }
+
+    tr:hover {
+        background-color: #f1f1f1;
+    }
+
+    .btn {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        cursor: pointer;
+        border: none;
+    }
+
+    .btn-warning {
+        background-color: #ffc107;
+        color: black;
+    }
+
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .btn-warning:hover {
+        background-color: #e0a800;
+    }
+
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+</style>
+@* 
+<header>
+    <div class="nav-left">
+        <h1>Uber</h1>
+        <a href="#">Ride</a>
+        <a href="#">Drive</a>
+    </div>
+    <div class="nav-right">
+        <a asp-controller="Account" asp-action="ChooseLoginType">Log in</a>
+        <a asp-controller="Account" asp-action="ChooseRegisterType" class="signup-btn">Sign up</a>
+    </div>
+</header>
+ *@
+
+
+
+
+
+
+
+
+<header>
+    <div class="nav-left">
+        <h1>Uber</h1>
+    </div>
+</header>
+
+<div class="page-title">Admins Management</div>
+<table id="Admins" class="display">
+    <thead class="thead-dark">
+        <tr>
+           <th>Name</th>
+            <th>Email</th>
+            <th>Phone Number</th>
+            <th>Date of Birth</th>
+            <th>Deleted</th>
+        </tr>
+    </thead>
+    <tbody id="ridersTable">
+        @foreach (var admin in Model)
+        {
+            <tr data-id="@admin.Id">
+
+                <td>@admin.Name</td>
+                <td>@admin.Email</td>
+                <td>@("0" + admin.PhoneNumber)</td>
+                <td>@admin.DateOfBirth.ToString("dd MMM yyyy")</td>
+                <td >
+                    @if (admin.IsDeleted == true)
+                    {
+                        <span class="badge bg-danger">Deleted</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-success">Available</span>
+                    }
+                </td>
+               
+            </tr>
+        }
+    </tbody>
+</table>
+
+<script>
+    function deleteAdmin(id) {
+        if (confirm("Are you sure you want to delete this Admin?")) {
+            fetch(`/Admin/DeleteAdmin/${id}`, { method: 'POST' })
+                .then(response => {
+                    if (response.ok) {
+                        document.querySelector(`tr[data-id='${id}']`).remove();
+                    } else {
+                        alert("Error deleting Admin.");
+                    }
+                });
+        }
+    }
+</script>
+
+

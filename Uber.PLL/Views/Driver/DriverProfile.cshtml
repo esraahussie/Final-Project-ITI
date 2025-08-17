@@ -1,0 +1,567 @@
+﻿@model Uber.DAL.Entities.Driver
+@{
+    ViewData["Title"] = "Driver Profile";
+}
+
+@if (TempData["PaymentMessage"] != null)
+{
+    <script>
+        alert('@TempData["PaymentMessage"]');
+    </script>
+}
+
+<div class="profile-container">
+    <aside class="sidebar">
+        <div class="user-info">
+            <div class="icon-placeholder">
+                @if (!string.IsNullOrEmpty(Model.ImagePath))
+                {
+                    <img src="~/Files/@Model.ImagePath" alt="Driver Photo" class="user-icon" />
+                }
+                else
+                {
+                    <i class="fas fa-user"></i>
+                }
+            </div>
+            <h3>@Model.Name</h3>
+        </div>
+
+        <ul>
+            <li data-tab="rides" class="active">Completed Rides</li>
+            <li data-tab="payment"> Earnings</li>
+            <li data-tab="help"> Help</li>
+            <li data-tab="settings"> Settings</li>
+            <li class="logout">
+                <form asp-controller="Account" asp-action="Logout" method="post" style="margin:0;">
+                    <button type="submit" class="sidebar-btn"> Logout</button>
+                </form>
+            </li>
+        </ul>
+    </aside>
+
+    <main class="content">
+        <section id="rides" class="tab-content active">
+            <h2>Completed Rides</h2>
+
+            <table id="rideUserprofile" class="display">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>ID</th>
+                        <th>Price</th>
+                        <th>Ride Time</th>
+                        <th>Duration</th>
+                        <th>Distance</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Rides != null && Model.Rides.Any())
+                    {
+                        @foreach (var ride in Model.Rides)
+                        {
+                            <tr>
+                                <td>@ride.Id</td>                              
+                                <td>@('$' + ride.Price?.ToString("F2"))</td>
+                                <td>@ride.CreatedAt.ToString()</td>
+                                <td>@(ride.Duration + " Min")</td>
+                                <td>@(ride.Distance + "Km")</td>
+                                <td>
+                                    @if (ride.Status == Uber.DAL.Enums.RideStatus.Rejected || ride.Status == Uber.DAL.Enums.RideStatus.Cancelled)
+                                    {
+                                        <span class="badge bg-danger">@ride.Status</span>
+                                    }
+                                    else if (ride.Status == Uber.DAL.Enums.RideStatus.InProgress || ride.Status == Uber.DAL.Enums.RideStatus.Pending)
+                                    {
+                                        <span class="badge bg-warning">@ride.Status</span>
+                                    }
+                                    else if (ride.Status == Uber.DAL.Enums.RideStatus.Completed || ride.Status == Uber.DAL.Enums.RideStatus.Accepted)
+                                    {
+                                        <span class="badge bg-success">@ride.Status</span>
+                                    }
+                                    else if (ride.Status == Uber.DAL.Enums.RideStatus.DriverWaiting)
+                                    {
+                                        <span class="badge bg-info">@ride.Status</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <p class="empty-msg">No rides yet.</p>
+                    }
+                </tbody>
+            </table>
+        </section>
+
+        <section id="payment" class="tab-content wallet-page">
+            <h1 class="wallet-title"> Wallet</h1>
+            <div class="wallet-card big">
+                <div class="wallet-header">
+                    <span class="wallet-balance-label">Cash balance</span>
+                </div>
+                <div class="wallet-balance">
+                    $@Model.Balance
+                </div>
+                <div class="wallet-actions">
+                    <a asp-controller="Payment" asp-action="Index" class="wallet-btn add">Add Cash</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="settings" class="tab-content">
+            <h2 style="text-align:center; margin-bottom: 20px;">Profile</h2>
+
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success" style="text-align: center; margin-bottom: 20px; padding: 10px; background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; border-radius: 5px;">
+                    @TempData["SuccessMessage"]
+                </div>
+            }
+
+            <form asp-controller="Driver" asp-action="EditDriver" method="post" enctype="multipart/form-data" class="edit-driver-form" id="driverForm">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input asp-for="Name" type="text" class="form-control" required />
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input asp-for="Email" type="email" class="form-control" readonly />
+                </div>
+                <div class="phone-container">
+                    <div class="phone-prefix">
+                        <img src="https://flagcdn.com/w20/eg.png" alt="Egypt Flag">
+                        +20
+                    </div>
+                    <input asp-for="PhoneNumber" id="phone" class="phone-input" type="tel"
+                           inputmode="numeric"
+                           pattern="^(10|11|12|15)\d{8}$"
+                           placeholder="1012345678" maxlength="10" required>
+                </div>
+                <div class="form-group">
+                    <label>Gender</label>
+                    <input type="text" class="form-control" value="@Model.Gender" readonly />
+                </div>
+                <div class="form-group">
+                    <label>Date of Birth</label>
+                    <input asp-for="DateOfBirth" type="date" min="1925-01-01" max="2007-12-31" required readonly />
+                </div>
+
+                <h3 style="margin-top: 20px;">Vehicle Info</h3>
+
+                <div class="form-group">
+                    <label>Brand</label>
+                    <input asp-for="Vehicle.Brand" type="text" class="form-control" required />
+                </div>
+                <div class="form-group">
+                    <label>Model</label>
+                    <input asp-for="Vehicle.Model" type="text" class="form-control" required />
+                </div>
+                <div class="form-group">
+                    <label>Year</label>
+                    <input asp-for="Vehicle.YearMade" type="number" min="2008" max="2025" class="form-control" required />
+                </div>
+                <div class="form-group">
+                    <label>Plate</label>
+                    <input asp-for="Vehicle.Plate" type="text" class="form-control" required />
+                </div>
+                <div class="form-group">
+                    <label>Color</label>
+                    <input asp-for="Vehicle.Color" type="text" class="form-control" required />
+                </div>
+                <div class="form-group">
+                    <label>Seating Capacity</label>
+                    <input asp-for="Vehicle.SeatingCapacity" type="number" min="1" max="14" class="form-control" required />
+                </div>
+                <div class="form-group">
+                    <label>Vehicle Type</label>
+                    <div class="radio-group">
+                        <label><input asp-for="Vehicle.Type" type="radio" value="Car" /> Car</label>
+                        <label><input asp-for="Vehicle.Type" type="radio" value="Scooter" /> Scooter</label>
+                        <label><input asp-for="Vehicle.Type" type="radio" value="Shuttle" /> Shuttle</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Transmission</label>
+                    <div class="radio-group">
+                        <label><input asp-for="Vehicle.Transmission" type="radio" value="Manual" /> Manual</label>
+                        <label><input asp-for="Vehicle.Transmission" type="radio" value="Automatic" /> Automatic</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Engine</label>
+                    <div class="radio-group">
+                        <label><input asp-for="Vehicle.VehicleEngine" type="radio" value="Gasoline" /> Gas</label>
+                        <label><input asp-for="Vehicle.VehicleEngine" type="radio" value="Electric" /> Electric</label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-save">Save</button>
+            </form>
+        </section>
+
+        <section id="help" class="tab-content">
+            <div class="help-container">
+                <header class="help-header">
+                    <h1> Help & Support</h1>
+                    <p>Quick tips to help you get started and use our app effectively.</p>
+                </header>
+
+                <section class="help-section">
+                    <h2>Getting Started</h2>
+                    <p>Sign up or log in, then request a ride by entering your pickup and drop-off locations.</p>
+                </section>
+
+                <section class="help-section">
+                    <h2>Booking a Ride</h2>
+                    <p>
+                        1. Go to the home page.<br>
+                        2. Enter pickup & drop-off points.<br>
+                        3. Choose your ride type.<br>
+                        4. Confirm booking.
+                    </p>
+                </section>
+
+                <section class="help-section">
+                    <h2>Payment Methods</h2>
+                    <p>We support Cash and Card payments. Set your preference in the "Wallet" tab.</p>
+                </section>
+
+                <section class="help-section">
+                    <h2>Safety Tips</h2>
+                    <ul>
+                        <li>Verify the driver's details before starting.</li>
+                        <li>Share your trip with friends or family.</li>
+                        <li>Contact support if you face any issues.</li>
+                    </ul>
+                </section>
+
+                <section class="help-section contact-section">
+                    <h2>Need More Help?</h2>
+                    <p>Contact our support team anytime:</p>
+                    <p class="contact-email">
+                        <a href="mailto:amrahmed24555@gmail.com">amrahmed24555@gmail.com</a>
+                    </p>
+                </section>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+
+<script>
+    document.querySelectorAll(".sidebar ul li[data-tab]").forEach(item => {
+        item.addEventListener("click", () => {
+            document.querySelectorAll(".sidebar ul li").forEach(li => li.classList.remove("active"));
+            document.querySelectorAll(".tab-content").forEach(tab => tab.classList.remove("active"));
+
+            item.classList.add("active");
+            const tabId = item.dataset.tab || "help";
+            document.getElementById(tabId).classList.add("active");
+        });
+    });
+    const phoneInput = document.getElementById('phone');
+    phoneInput.addEventListener('input', () => {
+        phoneInput.value = phoneInput.value.replace(/\D/g, '');
+    });
+</script>
+
+<style>
+    html, body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        height: 100%;
+    }
+
+    .profile-container {
+        display: flex;
+        min-height: 100vh;
+        background: #f8f9fa;
+    }
+
+    .sidebar {
+        width: 220px;
+        background: #000;
+        color: #fff;
+        padding: 20px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: fixed;
+        height: 100%;
+        top: 0;
+        left: 0;
+        z-index: 100;
+    }
+
+    .user-info {
+        text-align: center;
+        padding: 15px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .icon-placeholder {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: #1CB5A3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 8px;
+        font-size: 35px;
+        color: #fff;
+    }
+
+    .user-icon {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .user-info h3 {
+        font-size: 16px;
+        margin: 0;
+        color: #fff;
+    }
+
+    .sidebar ul {
+        list-style: none;
+        padding: 0;
+        width: 100%;
+    }
+
+        .sidebar ul li {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            text-align: left;
+        }
+
+            .sidebar ul li:hover, .sidebar ul li.active {
+                background: #1CB5A3;
+            }
+
+            .sidebar ul li a {
+                display: block;
+                color: inherit;
+                text-decoration: none;
+            }
+
+    .content {
+        flex: 1;
+        margin-left: 220px;
+        padding: 20px;
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+        .tab-content.active {
+            display: block;
+        }
+
+    .ride-card {
+        background: #fff;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    .empty-msg {
+        color: #777;
+        font-style: italic;
+    }
+
+    .edit-driver-form {
+        max-width: 600px;
+        margin: auto;
+        background: #fff;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .wallet-page {
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: calc(100vh - 60px);
+        background: none;
+    }
+
+        .wallet-page.active {
+            display: flex;
+        }
+
+    .wallet-title {
+        font-size: 40px;
+        font-weight: bold;
+        margin-bottom: 30px;
+        color: #333;
+    }
+
+    .wallet-card.big {
+        background: linear-gradient(135deg, #1CB5A3, #0e8b77);
+        color: #fff;
+        border-radius: 20px;
+        padding: 50px;
+        width: 500px;
+        text-align: center;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+
+    .wallet-balance-label {
+        font-size: 18px;
+        color: rgba(255,255,255,0.8);
+    }
+
+    .wallet-balance {
+        font-size: 50px;
+        font-weight: bold;
+        margin: 20px 0 30px;
+    }
+
+    .wallet-actions {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .wallet-btn {
+        flex: 1;
+        padding: 15px;
+        margin: 0 8px;
+        border: none;
+        border-radius: 12px;
+        font-size: 18px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+        background: rgba(255,255,255,0.15);
+        color: #fff;
+    }
+
+        .wallet-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+    .edit-driver-form .form-group {
+        margin-bottom: 15px;
+    }
+
+    .edit-driver-form label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+
+    .edit-driver-form input[type="text"], .edit-driver-form input[type="email"], .edit-driver-form input[type="password"], .edit-driver-form input[type="number"], .edit-driver-form input[type="date"], .edit-driver-form input[type="file"] {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+    }
+
+    .edit-driver-form .radio-group label {
+        margin-right: 15px;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .btn-save {
+        width: 100%;
+        padding: 12px;
+        background: #1CB5A3;
+        color: #fff;
+        font-weight: bold;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+        .btn-save:hover {
+            background: #17a38a;
+        }
+
+    .help-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 30px;
+        background: #f9f9f9;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+
+    .help-header h1 {
+        color: #1CB5A3;
+        font-size: 36px;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+
+    .help-header p {
+        font-size: 16px;
+        text-align: center;
+        color: #555;
+        margin-bottom: 30px;
+    }
+
+    .sidebar ul li.logout {
+        color: #fff;
+    }
+
+        .sidebar ul li.logout:hover {
+            background: #e74c3c;
+        }
+
+    .sidebar-btn {
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 14px;
+        padding: 0;
+        cursor: pointer;
+        width: 100%;
+        text-align: left;
+    }
+
+    .help-section {
+        margin-bottom: 25px;
+    }
+
+        .help-section h2 {
+            color: #1CB5A3;
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+
+        .help-section p, .help-section ul {
+            font-size: 16px;
+            color: #333;
+            line-height: 1.6;
+        }
+
+            .help-section ul li {
+                margin-bottom: 8px;
+            }
+
+    .contact-email a {
+        color: #1CB5A3;
+        text-decoration: underline;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+        .contact-email a:hover {
+            color: #17a38a;
+        }
+</style>

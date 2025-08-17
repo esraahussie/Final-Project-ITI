@@ -1,0 +1,441 @@
+﻿@{
+    ViewData["Title"] = "Driver Dashboard";
+}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<header>
+    <div class="nav-left">
+        <h1>Uber</h1>
+    </div>
+    <div class="nav-right">
+        <a asp-controller="Driver" asp-action="DriverProfile" title="My Profile" class="user-icon">
+            <i class="fas fa-user"></i>
+        </a>
+    </div>
+</header>
+
+<style>
+    header {
+        background: #000;
+        color: #fff;
+        padding: 20px 50px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .nav-left {
+        display: flex;
+        align-items: center;
+        gap: 30px;
+    }
+
+    .nav-right a {
+        color: #fff;
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.3s ease;
+    }
+
+        .nav-right a:hover {
+            color: #1CB5A3;
+        }
+
+    .nav-right .signup-btn {
+        background: #fff;
+        color: #000;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: bold;
+        transition: background 0.3s ease, color 0.3s ease;
+    }
+
+        .nav-right .signup-btn:hover {
+            background: #1CB5A3;
+            color: #fff;
+        }
+</style>
+
+<h2>Driver Dashboard</h2>
+<div style="margin-bottom: 20px; padding: 15px; background-color: #e8f5e8; border-radius: 8px; border-left: 4px solid #28a745;">
+    <h4 style="color: #28a745; margin: 0 0 10px 0;">🚗 Driver Status</h4>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <div>
+            <strong>Current Status:</strong>
+            <span id="driverStatus" style="padding: 5px 12px; background-color: #28a745; color: white; border-radius: 15px; font-size: 12px; font-weight: bold;">
+                Active
+            </span>
+        </div>
+        <button onclick="toggleDriverStatus()" id="toggleStatusBtn" style="padding: 8px 16px; background-color: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            Set Inactive
+        </button>
+    </div>
+    <small style="color: #6c757d; margin-top: 10px; display: block;">
+        Active drivers receive ride requests. Inactive drivers are not considered for new rides.
+    </small>
+</div>
+<p>Waiting for ride requests...</p>
+<div id="rideRequests"></div>
+<div id="connectionStatus" style="margin-top: 20px; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">
+    <strong>Connection Status:</strong> <span id="statusText">Connecting...</span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+<script>
+    let connection;
+    let isConnected = false;
+    async function initializeConnection() {
+        try {
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl("/rideHub", {
+                    skipNegotiation: true,
+                    transport: signalR.HttpTransportType.WebSockets
+                })
+                .withAutomaticReconnect()
+                .build();
+            connection.onreconnecting(() => {
+                updateStatus("Reconnecting...", "orange");
+            });
+            connection.onreconnected(() => {
+                updateStatus("Connected", "green");
+                isConnected = true;
+            });
+            connection.onclose(() => {
+                updateStatus("Disconnected", "red");
+                isConnected = false;
+            });
+            connection.on("ReceiveRideRequest", function (ride) {
+                displayRideRequest(ride);
+                if (Notification.permission === "granted") {
+                    new Notification("New Ride Request", {
+                        body: "You have a new ride request!",
+                        icon: "/favicon.ico"
+                    });
+                }
+            });
+            await connection.start();
+            updateStatus("Connected", "green");
+            isConnected = true;
+            await joinDriverGroup();
+        } catch (err) {
+            console.error("SignalR Connection Error:", err);
+            updateStatus("Connection Failed: " + err.message, "red");
+        }
+    }
+    async function joinDriverGroup() {
+        try {
+            const driverId = await getCurrentDriverId();
+            if (driverId) {
+                await connection.invoke("JoinDriverGroup", driverId);
+
+                updateStatus("Connected and joined driver group", "green");
+            } else {
+                console.warn("Could not determine driver ID");
+                updateStatus("Connected but driver ID not found", "orange");
+            }
+        } catch (err) {
+            console.error("Error joining driver group:", err);
+        }
+    }
+    async function getCurrentDriverId() {
+        try {
+            const response = await fetch('/Driver/GetCurrentDriverId');
+            if (response.ok) {
+                const data = await response.json();
+                return data.driverId;
+            } else {
+                console.error('Failed to get driver ID:', response.status);
+                return null;
+            }
+        } catch (err) {
+            console.error('Error getting driver ID:', err);
+            return null;
+        }
+    }
+    function updateStatus(message, color) {
+        const statusText = document.getElementById("statusText");
+        statusText.textContent = message;
+        statusText.style.color = color;
+    }
+    function displayRideRequest(ride) {
+        console.log('Displaying ride request:', ride);
+        const container = document.getElementById("rideRequests");
+        container.innerHTML = "";
+
+        const rideDiv = document.createElement("div");
+        rideDiv.className = "ride-request";
+        rideDiv.style.cssText = "border: 2px solid #007bff; border-radius: 8px; padding: 20px; margin: 15px; background-color: #f8f9fa; box-shadow: 0 2px 4px rgba(0,0,0,0.1);";
+
+        rideDiv.innerHTML = `
+            <h4 style="color: #007bff; margin-bottom: 15px;">🚗 New Ride Request</h4>
+            <div style="margin-bottom: 15px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div style="background-color: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 3px solid #007bff;">
+                        <p style="margin: 0 0 5px 0; font-weight: bold; color: #495057;">📏 Distance</p>
+                        <p style="margin: 0; font-size: 18px; color: #007bff;">${(ride.distance && ride.distance > 0) ? ride.distance.toFixed(1) + ' km' : 'N/A'}</p>
+                    </div>
+                    <div style="background-color: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 3px solid #28a745;">
+                        <p style="margin: 0 0 5px 0; font-weight: bold; color: #495057;">⏱ Duration</p>
+                        <p style="margin: 0; font-size: 18px; color: #28a745;">${(ride.duration && ride.duration > 0) ? Math.round(ride.duration) + ' min' : 'N/A'}</p>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div style="background-color: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 3px solid #ffc107;">
+                        <p style="margin: 0 0 5px 0; font-weight: bold; color: #495057;">💰 Price</p>
+                        <p style="margin: 0; font-size: 18px; color: #ffc107;">${(ride.price && ride.price > 0) ? '£' + ride.price.toFixed(2) : 'N/A'}</p>
+                    </div>
+                    <div style="background-color: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 3px solid #6f42c1;">
+                        <p style="margin: 0 0 5px 0; font-weight: bold; color: #495057;">⭐ User Rating</p>
+                        <p style="margin: 0; font-size: 18px; color: #6f42c1;">${(ride.userRating && ride.userRating > 0) ? ride.userRating + '/5' : 'N/A'}</p>
+                    </div>
+                </div>
+                <p style="margin: 0; font-size: 14px; color: #6c757d;"><strong>Ride ID:</strong> ${ride.rideId}</p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="acceptRide('${ride.rideId}', '${ride.rideGroup}')"
+                        style="background-color: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                    ✅ Accept Ride
+                </button>
+                <button onclick="rejectRide('${ride.rideId}', '${ride.rideGroup}')"
+                        style="background-color: #dc3545; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                    ❌ Reject Ride
+                </button>
+            </div>
+        `;
+        container.appendChild(rideDiv);
+    }
+    async function acceptRide(rideId, rideGroup) {
+        try {
+            const response = await fetch(`/Ride/DriverAccept`, {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: parseInt(rideId),
+                    rideGroup: rideGroup
+                })
+            });
+            if (response.ok) {
+                document.getElementById("rideRequests").innerHTML = "<div style='color: green; padding: 20px; text-align: center;'><h3>✅ Ride Accepted!</h3><p>Redirecting to ride details...</p></div>";
+                setTimeout(() => {
+                    window.location.href = `/Ride/RideDetails/${rideId}`;
+                }, 2000);
+            } else {
+                const errorData = await response.json();
+                alert("Error accepting ride: " + (errorData.message || "Unknown error"));
+            }
+        } catch (err) {
+            console.error("Error:", err);
+            alert("Error accepting ride. Please try again.");
+        }
+    }
+    async function rejectRide(rideId, rideGroup) {
+        try {
+            const response = await fetch(`/Ride/DriverReject`, {
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: parseInt(rideId),
+                    rideGroup: rideGroup
+                })
+            });
+            if (response.ok) {
+                document.getElementById("rideRequests").innerHTML = "<div style='color: orange; padding: 20px; text-align: center;'><h3>⚠ Ride Rejected</h3><p>You have rejected the ride request.</p></div>";
+                setTimeout(() => {
+                    document.getElementById("rideRequests").innerHTML = "<p>Waiting for new ride requests...</p>";
+                }, 3000);
+            } else {
+                const errorData = await response.json();
+                alert("Error rejecting ride: " + (errorData.message || "Unknown error"));
+            }
+        } catch (err) {
+            console.error("Error:", err);
+            alert("Error rejecting ride. Please try again.");
+        }
+    }
+    if (Notification.permission === "default") {
+        Notification.requestPermission();
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeConnection();
+        startHeartbeat();
+        // addLogEntry('📡 Fetching current driver status...');
+        getCurrentDriverStatus();
+    });
+    async function setDriverActive() {
+        try {
+            const response = await fetch('/Driver/MakeUserActive', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            if (response.ok) {
+                updateDriverStatusDisplay(true);
+            } else {
+                const errorData = await response.json();
+                console.error('Failed to set driver as active:', errorData);
+            }
+        } catch (err) {
+            console.error('Error setting driver as active:', err);
+        }
+    }
+    async function setDriverInactive() {
+        try {
+            const response = await fetch('/Driver/MakeUserInactive', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            if (response.ok) {
+                updateDriverStatusDisplay(false);
+            } else {
+                const errorData = await response.json();
+                console.error('Failed to set driver as inactive:', errorData);
+            }
+        } catch (err) {
+            console.error('Error setting driver as inactive:', err);
+        }
+    }
+    function updateDriverStatusDisplay(isActive) {
+        const statusElement = document.getElementById('driverStatus');
+        const toggleButton = document.getElementById('toggleStatusBtn');
+
+        if (statusElement && toggleButton) {
+            if (isActive) {
+                statusElement.textContent = 'Active';
+                statusElement.style.backgroundColor = '#28a745';
+                toggleButton.textContent = 'Set Inactive';
+                toggleButton.style.backgroundColor = '#dc3545';
+            } else {
+                statusElement.textContent = 'Inactive';
+                statusElement.style.backgroundColor = '#6c757d';
+                toggleButton.textContent = 'Set Active';
+                toggleButton.style.backgroundColor = '#28a745';
+            }
+        }
+    }
+    async function getCurrentDriverStatus() {
+        try {
+            const response = await fetch('/Driver/GetCurrentDriverStatus');
+            if (response.ok) {
+                const data = await response.json();
+                updateDriverStatusDisplay(data.isActive);
+                return data.isActive;
+            } else {
+                const errorData = await response.json();
+                console.error('Failed to get current driver status:', errorData);
+                return null;
+            }
+        } catch (err) {
+            console.error('Error getting current driver status:', err);
+            return null;
+        }
+    }
+    window.addEventListener('unload', function(e) {
+        setDriverInactive();
+    });
+    window.addEventListener('beforeunload', function(e) {
+        setDriverInactive();
+        e.preventDefault();
+        e.returnValue = '';
+    });
+    window.addEventListener('pagehide', function() {
+        setDriverInactive();
+    });
+    window.addEventListener('pageshow', function() {
+        if (!document.hidden) {
+            setDriverActive();
+            startHeartbeat();
+        }
+    });
+    window.addEventListener('online', function() {
+        console.log('Internet connection restored');
+        if (connection && !isConnected) {
+            initializeConnection();
+        }
+    });
+    window.addEventListener('offline', function() {
+        console.log('Internet connection lost');
+        setDriverInactive();
+    });
+    let userActivityTimeout;
+    const IDLE_TIMEOUT = 5 * 60 * 1000;
+    function resetUserActivityTimer() {
+        clearTimeout(userActivityTimeout);
+        userActivityTimeout = setTimeout(() => {
+            console.log('User idle for 5 minutes, setting driver as inactive');
+            setDriverInactive();
+        }, IDLE_TIMEOUT);
+    }
+    ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'].forEach(event => {
+        document.addEventListener(event, resetUserActivityTimer, true);
+    });
+    resetUserActivityTimer();
+    function cleanup() {
+        stopHeartbeat();
+        clearTimeout(userActivityTimeout);
+        setDriverInactive();
+    }
+    window.addEventListener('unload', cleanup);
+    window.setDriverStatus = function(active) {
+        if (active) {
+            setDriverActive();
+        } else {
+            setDriverInactive();
+        }
+    };
+    let heartbeatInterval;
+    function startHeartbeat() {
+        heartbeatInterval = setInterval(async () => {
+            if (!document.hidden && navigator.onLine) {
+                try {
+                    await setDriverActive();
+                } catch (err) {
+                    console.error('Heartbeat error:', err);
+                }
+            }
+        }, 30000);
+    }
+
+    function stopHeartbeat() {
+        if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+            heartbeatInterval = null;
+        }
+    }
+</script>
+<script>
+    window.toggleDriverStatus = async function() {
+        const currentStatus = document.getElementById("driverStatus").textContent;
+        const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
+        document.getElementById("driverStatus").textContent = newStatus;
+        document.getElementById("toggleStatusBtn").textContent = newStatus;
+        try {
+            const response = await fetch('/Driver/ToggleDriverStatus', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    isActive: newStatus === "Active"
+                })
+            });
+            if (response.ok) {
+                console.log(`Driver status set to ${newStatus}`);
+                alert(`Driver status set to ${newStatus}`);
+            } else {
+                const errorData = await response.json();
+                alert(`Error setting driver status to ${newStatus}: ${errorData.message || "Unknown error"}`);
+                document.getElementById("driverStatus").textContent = currentStatus;
+                document.getElementById("toggleStatusBtn").textContent = currentStatus;
+            }
+        } catch (err) {
+            console.error("Error toggling driver status:", err);
+            alert("Error toggling driver status. Please try again.");
+        }
+    };
+</script>
